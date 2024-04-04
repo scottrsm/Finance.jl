@@ -164,7 +164,7 @@ Collect all ``t, S_t`` where ``h \\ge S_t``.
 # Arguments
 - `t :: AbstractVector{S}` -- The tic series to examine.
 - `x :: AbstractVector{T}` -- The series to examine.
-- `w :: Int64`             -- The width of the moving average.
+- `w :: Int`             -- The width of the moving average.
 - `h :: T`                 -- The threshold for the deviation to register.
 
 # Keyword Arguments
@@ -193,7 +193,7 @@ The inputs are assumed to satisfy the constraints below.
 """
 function sig_cumsum(t::AbstractVector{S},
     				x::AbstractVector{T},
-    				w::Int64            ,
+    				w::Int            ,
     				h::T                ;
     				chk_inp::Bool=false  )::Tuple{AbstractVector{S},AbstractVector{T}} where {S<:Real,T<:Real}
     n = length(x)
@@ -244,10 +244,10 @@ Compute the Exponential Moving Average of the sequence `x`.
 
 # Arguments
 - `x :: AbstractVector{T}` -- The series to work with.
-- `m :: Int64`             -- The width of the decay window.
+- `m :: Int`             -- The width of the decay window.
 
 # Keyword Arguments
-- `h=div(m,2) :: Int64`       -- The exponential decay *half-life*. 
+- `h=div(m,2) :: Int`       -- The exponential decay *half-life*. 
 
 # Input Contract
 The inputs are assumed to satisfy the constraints below.
@@ -268,8 +268,8 @@ The inputs are assumed to satisfy the constraints below.
 
 """
 @noinline function ema(x::AbstractVector{T},
-    				   m::Int64            ;
-    				   h=div(m, 2)::Int64   )::AbstractVector{T} where {T<:Real}
+    				   m::Int            ;
+    				   h=div(m, 2)::Int   )::AbstractVector{T} where {T<:Real}
 
     ## Check Input Contract
     m > 1 || throw(DomainError(m, "The window length must be > 1."))
@@ -314,10 +314,10 @@ may be used instead.
 
 # Arguments
 - `x :: AbstractVector{T}` -- The series to work with.
-- `m :: Int64`             -- The width of the decay window.
+- `m :: Int`             -- The width of the decay window.
 
 # Keyword Arguments
-- `h=div(m,2)       :: Int64`             -- The exponential decay *half-life*. 
+- `h=div(m,2)       :: Int`             -- The exponential decay *half-life*. 
 - `init_sig=nothing :: Union{T, Nothing}` -- An optional user supplied initial standard deviation for the start of the series.      
 
 # Input Contract
@@ -340,8 +340,8 @@ The inputs are assumed to satisfy the constraints below.
 `stda::AbstractVector{T}`
 """
 @noinline function ema_std(x::AbstractVector{T}             ,
-    					   m::Int64                         ;
-    					   h=div(m, 2)::Int64               ,
+    					   m::Int                         ;
+    					   h=div(m, 2)::Int               ,
     					   init_sig=nothing::Union{T,Nothing})::AbstractVector{T} where {T<:Real}
 
     N = length(x)
@@ -413,10 +413,10 @@ Returns these stats as a matrix with four columns, each representing the stats a
 
 # Arguments
 - `x :: AbstractVector{T}` -- The series to work with.
-- `m :: Int64`             -- The width of the decay window.
+- `m :: Int`             -- The width of the decay window.
 
 # Keyword Arguments
-- `h=div(m,2) :: Int64`     -- The exponential decay *half-life*. 
+- `h=div(m,2) :: Int`     -- The exponential decay *half-life*. 
 - `init_sig=nothing:: Union{T, Nothing}` -- An optional user supplied initial standard deviation for the start of the series.      
 
 # Input Contract
@@ -438,8 +438,8 @@ The inputs are assumed to satisfy the constraints below:
 `stat::Matrix{T}`
 """
 @noinline function ema_stats(x::AbstractVector{T}             ,
-    					   	 m::Int64                         ;
-    						 h=div(m, 2)::Int64               ,
+    					   	 m::Int                         ;
+    						 h=div(m, 2)::Int               ,
     						 init_sig=nothing::Union{Nothing,T})::Matrix{T} where {T<:Real}
     N = length(x)
 
@@ -590,7 +590,7 @@ the entropy of the corresponding uniform distribution (of `n` bins) is returned.
 - `x::Vector{T}`                        -- Vector to process.
 
 # Keyword Arguments
-- `n=10::Int64`                         -- Exponential.
+- `n=10::Int`                         -- Exponential.
 - `tol=1.0/(100 * n)::Float64`          -- Error tolerance used with equivalency test of number to 0 or 1.
 - `probs=[0.01, 0.99]::Vector{Float64}` -- Vector of quantile min and max.
 - `λ=1.0::Float64`                      -- Discount value.
@@ -605,7 +605,7 @@ the entropy of the corresponding uniform distribution (of `n` bins) is returned.
 `::Real` -- The (discounted) binned entropy index.
 """
 function entropy_index(x::Vector{T}                       ;
-                       n::Int64=10                        ,
+                       n::Int=10                        ,
     				   tol::Float64=1.0 / (100 * n)       ,
      				   probs::Vector{Float64}=[0.01, 0.99],
     				   λ=1.0                               ) where {T<:Real}
@@ -624,7 +624,7 @@ function entropy_index(x::Vector{T}                       ;
     width = (qmax - qmin) / n
 
     # For each filtered data point assign it to its bin index.
-    @fastmath idxs = Int64.(1.0 .+ (div.(x .- qmin .- tol, width)))
+    @fastmath idxs = Int.(1.0 .+ (div.(x .- qmin .- tol, width)))
     idxs .= min.(idxs, n)
     idxs .= max.(idxs, 1)
 
@@ -666,7 +666,7 @@ representation of `n`.
 
 # Arguments
 - `x::T`     -- The base value.
-- `n::Int64` -- The power.
+- `n::Int` -- The power.
 
 # Input Contract
 - ``n \\ge 0`` 
@@ -674,7 +674,7 @@ representation of `n`.
 # Return
 `::T`        -- The Power Value.
 """
-@noinline function pow_n(x::T, n::Int64) where {T<:Number}
+@noinline function pow_n(x::T, n::Int) where {T<:Number}
 
     # Check input contract.
     if n < 0
@@ -717,7 +717,7 @@ The output will be of type `T^* = typeof(promote(x, m))`.
 
 # Arguments
 - `x::T`     -- The base value.
-- `n::Int64` -- The power.
+- `n::Int` -- The power.
 - `m::S`     -- The modulus.
 
 # Input Contract
@@ -726,7 +726,7 @@ The output will be of type `T^* = typeof(promote(x, m))`.
 # Return
 ``::T^*``    -- The Power Value mod `m`.
 """
-@noinline function pow_n(x::T, n::Int64, m::S) where {T<:Real,S<:Real}
+@noinline function pow_n(x::T, n::Int, m::S) where {T<:Real,S<:Real}
 
     # Check input contract.
     if n < 0
@@ -778,7 +778,7 @@ This is also done in an un-normalized way. Then the weights are normalized and d
 # Parameters
 - ts::Vector{Float64} -- Data time stamps -- ordered from smallest (oldest) to largest (newest).
 - xs::Vectpr{Float64} -- Data values associated with time stamps.
-- b::Int64            -- The width of the window
+- b::Int            -- The width of the window
 - lm::Float64         -- The decay factor: 0.0 < lm <= 1.0
 
 # Input Contract
@@ -792,7 +792,7 @@ This is also done in an un-normalized way. Then the weights are normalized and d
 """
 function ewt_mean(ts::Vector{Float64},
                   xs::Vector{Float64},
-                  b::Int64           ,
+                  b::Int           ,
                   lm::Float64         )
     n = length(ts)
 

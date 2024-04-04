@@ -62,19 +62,19 @@ tic_diff2(::AbstractVector{T}, ::AbstractVector{S}; ::Bool=false) where {T <: Re
 ```
 
 ```@docs
-pow_n(::T, ::Int64) where {T <: Number} 
+pow_n(::T, ::Int) where {T <: Number} 
 ```
 
 ```@docs
-pow_n(::T, ::Int64, ::S) where {T <: Real, S <: Real} 
+pow_n(::T, ::Int, ::S) where {T <: Real, S <: Real} 
 ```
 
 ```@docs
-entropy_index(::Vector{T}; ::Int64=10, ::Float64=1.0 / (100 * n), ::Vector{Float64}=[0.01, 0.99], ::Float64=1.0) where {T <: Real}
+entropy_index(::Vector{T}; ::Int=10, ::Float64=1.0 / (100 * n), ::Vector{Float64}=[0.01, 0.99], ::Float64=1.0) where {T <: Real}
 ```
 
 ```@docs
-ewt_mean(::Vector{Float64}, ::Vector{Float64}, ::Int64, ::Float64)
+ewt_mean(::Vector{Float64}, ::Vector{Float64}, ::Int, ::Float64)
 ```
 
 ## Index
