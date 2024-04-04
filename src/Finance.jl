@@ -553,23 +553,6 @@ The inputs are assumed to satisfy the constraints below.
     return (sqrt(sd / (N - 1)))
 end
 
-"""
-    WWsum(w)
-
-Computes the sum: ``\\sum_{i=1}^{N-1} \\sum_{j=i+1}^N w_i^2 w_j^2``.
-
-Here, `N = |w|`. 
-
-# Type Constraints
-- `T <: Real`
-
-# Arguments
-- `w :: AbstractVector{T}` -- Vector of weights.
-
-# Return
-The above sum.
-
-"""
 @noinline function WWsum(w::AbstractVector{T})::T where {T<:Real}
     WW = zero(T)
     m = length(w)

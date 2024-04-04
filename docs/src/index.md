@@ -14,7 +14,6 @@ in time series data.
                 with respect to an irregular time series.
 - `tic_diff2:` This function finds the numerical second derivative
                 with respect to irregular time series data.
-- `WWsum:`     A utility function used in `ema_stat`.
 - `ema:`       Computes the Exponential Moving Average of a time series. 
 - `ema_std:`   Computes the standard deviation of an
                Exponential Moving Average of a time series. 
