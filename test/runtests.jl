@@ -10,7 +10,7 @@ Random.seed!(1)
 N = 20          # Length of data series.
 TOL  = 1.0e-10  # Floating point tolerance.
 TOL2 = 1.0e-10  # Floating point tolerance.
-RNDS = rand(N)  # Data series.
+RNDS = Float64.(rand(N))  # Data series.
 
 # Sample Standard deviation of data series.
 std_gold1 = 0.3281428080051744
@@ -37,7 +37,7 @@ ema_std_gold[10] = [0.39657167182108954, 0.37089544160218185, 0.3666404749231677
 
 # Pi to the 11th power.
 Random.seed!(1)
-RNDS2 = rand(1000)
+RNDS2 = Float64.(rand(1000))
 pi_11_gold = 294204.0179738905
 r_1000_l1_gold = 0.987213065673524
 r_1000_l9_gold = 0.06972438782723225
