@@ -74,7 +74,7 @@ entropy_index(::AbstractVector{T}; ::Int=10, ::F=1.0 / (100 * n), ::Vector{F}=[0
 ```
 
 ```@docs
-ewt_mean(::Vector{Float64}, ::Vector{Float64}, ::Int, ::Float64)
+ewt_mean(::AbstractVector{Float64}, ::Vector{Float64}, ::Int, ::Float64)
 ```
 
 ## Index
