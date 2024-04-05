@@ -317,8 +317,8 @@ may be used instead.
 - `m :: Int`             -- The width of the decay window.
 
 # Keyword Arguments
-- `h=div(m,2)       :: Int`             -- The exponential decay *half-life*. 
-- `init_sig=nothing :: Union{T, Nothing}` -- An optional user supplied initial standard deviation for the start of the series.      
+- `h=div(m,2)       :: Int`               -- The exponential decay *half-life*. 
+- `init_sig=nothing :: Union{Nothing, T}` -- An optional user supplied initial standard deviation for the start of the series.      
 
 # Input Contract
 The inputs are assumed to satisfy the constraints below.
@@ -337,12 +337,12 @@ The inputs are assumed to satisfy the constraints below.
 - `|x| = |stda|`
 
 # Return
-`stda::AbstractVector{T}`
+`stda::Vector{T}`
 """
-@noinline function ema_std(x::AbstractVector{T}             ,
+@noinline function ema_std(x::AbstractVector{T}           ,
     					   m::Int                         ;
     					   h=div(m, 2)::Int               ,
-    					   init_sig=nothing::Union{T,Nothing})::AbstractVector{T} where {T<:Real}
+    					   init_sig=nothing::Union{Nothing,T})::Vector{T} where {T<:Real}
 
     N = length(x)
 
@@ -437,7 +437,7 @@ The inputs are assumed to satisfy the constraints below:
 # Return
 `stat::Matrix{T}`
 """
-@noinline function ema_stats(x::AbstractVector{T}             ,
+@noinline function ema_stats(x::AbstractVector{T}           ,
     					   	 m::Int                         ;
     						 h=div(m, 2)::Int               ,
     						 init_sig=nothing::Union{Nothing,T})::Matrix{T} where {T<:Real}
