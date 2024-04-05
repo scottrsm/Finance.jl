@@ -70,11 +70,11 @@ pow_n(::T, ::Int, ::S) where {T <: Real, S <: Real}
 ```
 
 ```@docs
-entropy_index(::Vector{T}; ::Int=10, ::Float64=1.0 / (100 * n), ::Vector{Float64}=[0.01, 0.99], ::Float64=1.0) where {T <: Real}
+entropy_index(::AbstractVector{T}; ::Int=10, ::F=1.0 / (100 * n), ::Vector{F}=[0.01, 0.99], ::F=1.0) where {T <: Real, F <: AbstractFloat}
 ```
 
 ```@docs
-ewt_mean(::Vector{Float64}, ::Vector{Float64}, ::Int, ::Float64)
+ewt_mean(::Vector{AbstractFloat}, ::Vector{AbstractFloat}, ::Int, ::AbstractFloat)
 ```
 
 ## Index

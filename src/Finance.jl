@@ -585,15 +585,16 @@ the entropy of the corresponding uniform distribution (of `n` bins) is returned.
 
 # Type Constraints
 - `T <: Real`
+- `F <: AbstractFloat`
 
 # Arguments
-- `x::Vector{T}`                        -- Vector to process.
+- `x::AbstractVector{T}`          -- Vector to process.
 
 # Keyword Arguments
-- `n=10::Int`                         -- Exponential.
-- `tol=1.0/(100 * n)::Float64`          -- Error tolerance used with equivalency test of number to 0 or 1.
-- `probs=[0.01, 0.99]::Vector{Float64}` -- Vector of quantile min and max.
-- `λ=1.0::Float64`                      -- Discount value.
+- `n=10::Int`                     -- Exponential.
+- `tol=1.0/(100 * n)::F`          -- Error tolerance used with equivalency test of number to 0 or 1.
+- `probs=[0.01, 0.99]::Vector{F}` -- Vector of quantile min and max.
+- `λ=1.0::F`                      -- Discount value.
 
 # Input Contract
 - `n > 2`
@@ -602,13 +603,13 @@ the entropy of the corresponding uniform distribution (of `n` bins) is returned.
 - ``0 < \\lambda \\le 1``
 
 # Return
-`::Real` -- The (discounted) binned entropy index.
+`::F` -- The (discounted) binned entropy index.
 """
-function entropy_index(x::Vector{T}                       ;
-                       n::Int=10                        ,
-    				   tol::Float64=1.0 / (100 * n)       ,
-     				   probs::Vector{Float64}=[0.01, 0.99],
-    				   λ=1.0                               ) where {T<:Real}
+function entropy_index(x::AbstractVector{T}         ;
+                       n::Int=10                    ,
+    				   tol::F=1.0 / (100 * n)       ,
+     				   probs::Vector{F}=[0.01, 0.99],
+    				   λ::F=1.0                      ) where {T<:Real, F <: AbstractFloat}
 
     # Check Input contract.
     n > 2              || throw(DomainError(n,     "Bad number of bins."))
@@ -620,7 +621,7 @@ function entropy_index(x::Vector{T}                       ;
     qmin, qmax = Statistics.quantile(x, probs)
 
     # This will be the data distribution structure based on the granularity (`n`).
-    bdist = Vector{Float64}(undef, n)
+	bdist = zeros(F, n)
     width = (qmax - qmin) / n
 
     # For each filtered data point assign it to its bin index.
@@ -642,7 +643,7 @@ function entropy_index(x::Vector{T}                       ;
     bdist ./= sum(bdist)
 
     # Get the discounted entropy of the binned distribution.
-    ent = 0.0
+	ent = zero(F)
     @inbounds @simd for i in 1:n
         prb = bdist[i]
         @fastmath ent -= isapprox(prb, 0.0; atol=tol) ? 0.0 : prb * log(prb)
@@ -776,10 +777,10 @@ This is also done in an un-normalized way. Then the weights are normalized and d
 **NOTE:** Set `lm` to 1.0 to just have temporal weighting *without* decay.
 
 # Parameters
-- ts::Vector{Float64} -- Data time stamps -- ordered from smallest (oldest) to largest (newest).
-- xs::Vectpr{Float64} -- Data values associated with time stamps.
+- ts::Vector{AbstractFloat} -- Data time stamps -- ordered from smallest (oldest) to largest (newest).
+- xs::Vectpr{AbstractFloat} -- Data values associated with time stamps.
 - b::Int            -- The width of the window
-- lm::Float64         -- The decay factor: 0.0 < lm <= 1.0
+- lm::AbstractFloat         -- The decay factor: 0.0 < lm <= 1.0
 
 # Input Contract
 - |ts| == |xs|
@@ -787,13 +788,13 @@ This is also done in an un-normalized way. Then the weights are normalized and d
 - 0.0 < lm <= 1.0
 
 # Return
-::Vector{Float64} -- A vector of length |xs| - b.
+::Vector{AbstractFloat} -- A vector of length |xs| - b.
 
 """
-function ewt_mean(ts::Vector{Float64},
-                  xs::Vector{Float64},
+function ewt_mean(ts::Vector{AbstractFloat},
+                  xs::Vector{AbstractFloat},
                   b::Int           ,
-                  lm::Float64         )
+                  lm::AbstractFloat         )
     n = length(ts)
 
     # Check input contract.
@@ -802,10 +803,10 @@ function ewt_mean(ts::Vector{Float64},
     0.0 < lm <= 1.0 || throw(DomainError(lm, "The decay factor, `lm`, must be in the interval (0.0, 1.0]."))
 
     # `wm` will be the weighted mean that is returned.
-    wm = Vector{Float64}(undef, n - b)
+    wm = Vector{AbstractFloat}(undef, n - b)
 
     # Construct the temporal decay factors -- decay more as we go back in time.
-    decayFs = Vector{Float64}(undef, b)
+    decayFs = Vector{AbstractFloat}(undef, b)
     decayFs[b] = 1.0
     @inbounds for k in (b-1):1
         decayFs[k] = decayFs[k+1] * lm
@@ -821,7 +822,7 @@ function ewt_mean(ts::Vector{Float64},
     # Finally we need to normalize these modified weights: ws[i] =  (temporal_weight[i] * decay_factor[i]) 
     # so that within the band they sum to 1.
 
-    ws = Vector{Float64}(undef, b)                     # This will be the modified (un-normalized) weights over the band.
+    ws = Vector{AbstractFloat}(undef, b)                     # This will be the modified (un-normalized) weights over the band.
     @inbounds for i in 1:(n-b)
         @simd for j in 1:b
             ws[j] = decayFs[j] * dts[i+j-1]            # Modified (un-normalized) weights.
