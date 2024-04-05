@@ -777,8 +777,8 @@ This is also done in an un-normalized way. Then the weights are normalized and d
 **NOTE:** Set `lm` to 1.0 to just have temporal weighting *without* decay.
 
 # Parameters
-- ts::Vector{Float64} -- Data time stamps -- ordered from smallest (oldest) to largest (newest).
-- xs::Vectpr{Float64} -- Data values associated with time stamps.
+- ts::AbstractVector{Float64} -- Data time stamps -- ordered from smallest (oldest) to largest (newest).
+- xs::AbstractVector{Float64} -- Data values associated with time stamps.
 - b::Int            -- The width of the window
 - lm::Float64         -- The decay factor: 0.0 < lm <= 1.0
 
@@ -791,10 +791,10 @@ This is also done in an un-normalized way. Then the weights are normalized and d
 ::Vector{Float64} -- A vector of length |xs| - b.
 
 """
-function ewt_mean(ts::Vector{Float64},
-                  xs::Vector{Float64},
-                  b::Int           ,
-                  lm::Float64         )
+function ewt_mean(ts::AbstractVector{Float64},
+                  xs::AbstractVector{Float64},
+                  b::Int                     ,
+                  lm::Float64                 )
     n = length(ts)
 
     # Check input contract.
