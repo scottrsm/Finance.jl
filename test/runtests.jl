@@ -46,7 +46,7 @@ r_1000_l9_gold = 0.06972438782723225e0
 #--------------      TESTS       ----------------------------------------
 #------------------------------------------------------------------------
 #
-@testset "Finance (Fidelity)" begin
+@testset "Finance (Fidelity)            " begin
 
     @test length(detect_ambiguities(Finance)) == 0
 end
@@ -71,7 +71,7 @@ end
     end
 end
 
-@testset "Finance (Entropy Index)" begin
+@testset "Finance (Entropy Index)       " begin
     # Compute fast exponential
     @test pow_n(2, 7) == 128
     @test pow_n(2, 5) == 32
@@ -101,7 +101,7 @@ end
 
 end
 
-@testset "Finance (PropCheck Test)" begin
+@testset "Finance (PropCheck Test)      " begin
 
     function prv(v)
         n = length(v)
