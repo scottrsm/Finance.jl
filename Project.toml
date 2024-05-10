@@ -1,9 +1,10 @@
 name = "Finance"
 uuid = "fba0821c-f1ae-4be3-a6d8-4338d942d7cc"
 authors = ["Roland Scott McIntire"]
-version = "1.0.3"
+version = "1.0.4"
 
 [deps]
+PropCheck = "ca382230-33be-11e9-0059-d981d03070e4"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
@@ -18,4 +19,3 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
 test = ["Test"]
-
