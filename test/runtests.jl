@@ -1,7 +1,7 @@
-using Test
 using Finance
-import Random
 import PropCheck
+import Random
+using Test
 
 # Set random seed.
 Random.seed!(1)
