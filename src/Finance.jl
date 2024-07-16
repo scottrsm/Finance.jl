@@ -198,7 +198,7 @@ function sig_cumsum(t::AbstractVector{S},
     				chk_inp::Bool=false  )::Tuple{AbstractVector{S},AbstractVector{T}} where {S<:Real,T<:Real}
     n = length(x)
 
-    ## Input contract.
+    # Input contract.
     if chk_inp
         n >= 2                   || throw(DomainError(n, "Vector length of `x` must be >= 2."))
 		n == length(t)           || throw(DomainError(nt, "Length of time sequence should match length of data."))
@@ -213,11 +213,11 @@ function sig_cumsum(t::AbstractVector{S},
     Sp[1] = z
     Sn[1] = z
 
-    xm = x[1]  # Running mean of the input `x` computed based on window, `w`.
+    xm   = x[1]  # Running mean of the input `x` computed based on window, `w`.
     sigs = T[]   # The signals/deviations to be returned. 
     tics = S[]   # The tics where the deviations occurred.
 
-    ## Loop over the series and populate, `tics` and `sigs`.
+    # Loop over the series and populate, `tics` and `sigs`.
     @inbounds @simd for i in 2:n
         xm = ((w - 1) * xm + x[i-1]) / w
         Sp[i] = max(z, Sp[i-1] + x[i] - xm)
@@ -271,7 +271,7 @@ The inputs are assumed to satisfy the constraints below.
     				   m::Int              ;
     				   h=div(m, 2)::Int     )::Vector{T} where {T<:Real}
 
-    ## Check Input Contract
+    # Check Input Contract
     m > 1 || throw(DomainError(m, "The window length must be > 1."))
     h > 1 || throw(DomainError(h, "The half-life must be > 1."))
 
@@ -282,7 +282,7 @@ The inputs are assumed to satisfy the constraints below.
     @inbounds xadj[(m+1):end] = x
 	w = Vector{T}(undef, m)
 
-    ## Term by term decay factor.
+    # Term by term decay factor.
     l = exp(-log(2 * one(T)) / h)
 
     w[1] = l
@@ -291,7 +291,7 @@ The inputs are assumed to satisfy the constraints below.
     end
     w ./= sum(w)
 
-    ## Compute the EMA using the difference equation recursion.
+    # Compute the EMA using the difference equation recursion.
     ma[1] = xadj[m+1]
     @inbounds @simd for i in 2:N
         ma[i] = l * (ma[i-1] - w[m] * xadj[i]) + w[1] * xadj[i+m]
@@ -348,40 +348,40 @@ The inputs are assumed to satisfy the constraints below.
 
     N = length(x)
 
-    ## Check input constraints.
+    # Check input constraints.
     m > 1 || throw(DomainError(m, "The window length must be > 1."))
     h > 1 || throw(DomainError(h, "The half-life must be > 1."))
     N > 1 || throw(DomainError(N, "The length of the data series must be > 1."))
 	(init_sig === nothing || init_sig >= zero(T)) || throw(DomainError(init_sig, "The initial sigma must be `nothing` or non-negative."))
 
-    ## Compute the ema for `x`.
+    # Compute the ema for `x`.
     ma = ema(x, m, h=h)
 
-    ## Variance estimates.
+    # Variance estimates.
 	mvar = Vector{T}(undef, N)
 
-    ## Set the initial estimated/supplied variance.
+    # Set the initial estimated/supplied variance.
     mvar[1] = init_sig !== nothing ? init_sig : std(x[1:min(m, N)])
     mvar[1] *= mvar[1]
 
-    ## Add history (`m` zeros) for variance.
-    ## We do this by augmenting the length of the "x"'s -- `(x - ma)^2`
-    ## to have size `N + m`, so we can go "back" m. This means that
-    ## xadj has to be indexed differently than the way 
-    ## the formula does indexing.
+    # Add history (`m` zeros) for variance.
+    # We do this by augmenting the length of the "x"'s -- `(x - ma)^2`
+    # to have size `N + m`, so we can go "back" m. This means that
+    # xadj has to be indexed differently than the way 
+    # the formula does indexing.
 	xadj = Vector{T}(undef, N + m)
 	xadj[1:m] .= zero(T)
 
-    ## We don't need the following line (like what we have in the corresponding ema code)
-    ## as `(x - ma)[1]` = 0, and the xadj array is already set to 0.
+    # We don't need the following line (like what we have in the corresponding ema code)
+    # as `(x - ma)[1]` = 0, and the xadj array is already set to 0.
     @inbounds xadj[(m+1):end] = (x - ma) .* (x - ma)
 	w = Vector{T}(undef, m)
 
-    ## Term by term decay factor.
+    # Term by term decay factor.
     l = exp(-log(2 * one(T)) / h)
 
-    ## Use this to define the weights; then normalize.
-    ## Weights go from large to small.
+    # Use this to define the weights; then normalize.
+    # Weights go from large to small.
     w[1] = l
     @inbounds @simd for i in 2:m
         @fastmath w[i] = l * w[i-1]
@@ -389,14 +389,14 @@ The inputs are assumed to satisfy the constraints below.
     w ./= sum(w)
     w2 = sum(w .* w)
 
-    ## Recursive formula for variance.
+    # Recursive formula for variance.
     @inbounds @simd for n in 1:(N-1)
         mvar[n+1] = l * (mvar[n] - xadj[n+1] * w[m]) + xadj[n+m+1] * w[1]
     end
 	xadj = nothing
 	w    = nothing
 
-    ## Return corrected variances (unbiased).
+    # Return corrected variances (unbiased).
     return (sqrt.(mvar ./ (one(T) - w2)))
 end
 
@@ -448,27 +448,27 @@ The inputs are assumed to satisfy the constraints below:
     						 init_sig=nothing::Union{Nothing,T})::Matrix{T} where {T<:Real}
     N = length(x)
 
-    ## Check input constraints.
+    # Check input constraints.
     m > 1 || throw(DomainError(m, "The window length must be > 1."))
     h > 1 || throw(DomainError(h, "The half-life must be > 1."))
 	N > 3 || throw(DomainError(N, "N must be > 3."))
     typeof(init_sig) == T && init_sig < zero(T) && throw(DomainError(init_sig, "The initial sigma must be non-negative."))
 
-    ## Compute the EMA of `x`.
+    # Compute the EMA of `x`.
     ma = ema(x, m, h=h)
 
 	mstat = Matrix{T}(undef, N, 4)
     mstat[1, 1] = x[1]
 
-    ## Set the initial estimated/supplied variance.
+    # Set the initial estimated/supplied variance.
     mstat[1, 2] = init_sig !== nothing ? init_sig : std(x[1:min(m, N)])
     mstat[1, 2] *= mstat[1, 2]
 
-    ## Add history (`m` zeros) for variance, etc.
-    ## We do this by augmenting the length of the "x"'s -- `(x - ma)^2`, `(x - ma)^3`, etc.
-    ## to have size `N + m`, so we can go "back" `m`. This means that
-    ## `xadj` has to be indexed differently than the way 
-    ## the formula does indexing.
+    # Add history (`m` zeros) for variance, etc.
+    # We do this by augmenting the length of the "x"'s -- `(x - ma)^2`, `(x - ma)^3`, etc.
+    # to have size `N + m`, so we can go "back" `m`. This means that
+    # `xadj` has to be indexed differently than the way 
+    # the formula does indexing.
 	xadj = Matrix{T}(undef, N + m, 4)
     v = (x - ma) .* (x - ma)
     @inbounds xadj[1:m, 1] .= x[1]
@@ -478,7 +478,7 @@ The inputs are assumed to satisfy the constraints below:
     @inbounds xadj[(m+1):end, 4] .= v .* v
 	w = Vector{T}(undef, m)
 
-    ## Term by term decay factor.
+    # Term by term decay factor.
     l = exp(-log(2 * one(T)) / h)
 
     w[1] = l
@@ -487,7 +487,7 @@ The inputs are assumed to satisfy the constraints below:
     end
     w ./= sum(w)
 
-    ## Compute the sums of `w` to powers from 2 to 5.
+    # Compute the sums of `w` to powers from 2 to 5.
     W2 = zero(T)
     W3 = zero(T)
     W4 = zero(T)
@@ -502,18 +502,18 @@ The inputs are assumed to satisfy the constraints below:
     end
     WW = WWsum(w)
 
-    ## Expressions needed to unbias our estimates.
+    # Expressions needed to unbias our estimates.
    	C1 = 6 * W2 * W5 - 6 * W2 + 12 * W2^2 - 12 * W2 * W4 + W2 * W3 - W5 - 6 * WW
     C2 = 1 - 3 * W2 + 6 * W3 - 3 * W4
 
-    ## Recursion to compute the moving stats.
+    # Recursion to compute the moving stats.
     for i in 1:4
         @inbounds @simd for n in 1:(N-1)
             mstat[n+1, i] = l * (mstat[n, i] - xadj[n+1, i] * w[m]) + xadj[n+m+1, i] * w[1]
         end
     end
 
-    ## Unbias the estimates.
+    # Unbias the estimates.
     mstat[:, 2] ./= one(T) - W2
     mstat[:, 2]   = sqrt.(mstat[:, 2])
     mstat[:, 3] ./= (mstat[:, 2] .^ 1.5 .* (one(T) - 3 * W2 + 2 * W3))
@@ -823,12 +823,13 @@ function ewt_mean(ts::AbstractVector{Float64},
     # Get temporal weighting.
     dts = diff(ts)
 
-    # Average over all windows (length b -- bandwidth) the data, xs[i, i+b-1], 
-    # using the temporal difference weighting but modifying them by a factor
-    # which is based on how far back in time one goes within the band: data[i] * temporal_weight[i] * decay_factor[i]
-    # Here decay_factor looks like l^(b-1), l^(b-2), ... l^2, l, 1.
-    # Finally we need to normalize these modified weights: ws[i] =  (temporal_weight[i] * decay_factor[i]) 
-    # so that within the band they sum to 1.
+    #= Average over all windows (length b -- bandwidth) the data, xs[i, i+b-1], 
+       using the temporal difference weighting but modifying them by a factor
+       which is based on how far back in time one goes within the band: data[i] * temporal_weight[i] * decay_factor[i]
+       Here decay_factor looks like l^(b-1), l^(b-2), ... l^2, l, 1.
+       Finally, we need to normalize these modified weights: ws[i] =  (temporal_weight[i] * decay_factor[i]) 
+       so that within the band they sum to 1.
+	=#
 
     ws = Vector{Float64}(undef, b)                     # This will be the modified (un-normalized) weights over the band.
     @inbounds for i in 1:(n-b)
