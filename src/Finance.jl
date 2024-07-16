@@ -294,7 +294,7 @@ The inputs are assumed to satisfy the constraints below.
     ## Compute the EMA using the difference equation recursion.
     ma[1] = xadj[m+1]
     @inbounds @simd for i in 2:N
-        @fastmath ma[i] = l * (ma[i-1] - w[m] * xadj[i]) + w[1] * xadj[i+m]
+        ma[i] = l * (ma[i-1] - w[m] * xadj[i]) + w[1] * xadj[i+m]
     end
 	xadj = nothing
 	w    = nothing
@@ -391,7 +391,7 @@ The inputs are assumed to satisfy the constraints below.
 
     ## Recursive formula for variance.
     @inbounds @simd for n in 1:(N-1)
-        @fastmath mvar[n+1] = l * (mvar[n] - xadj[n+1] * w[m]) + xadj[n+m+1] * w[1]
+        mvar[n+1] = l * (mvar[n] - xadj[n+1] * w[m]) + xadj[n+m+1] * w[1]
     end
 	xadj = nothing
 	w    = nothing
@@ -503,13 +503,13 @@ The inputs are assumed to satisfy the constraints below:
     WW = WWsum(w)
 
     ## Expressions needed to unbias our estimates.
-    @fastmath C1 = 6 * W2 * W5 - 6 * W2 + 12 * W2^2 - 12 * W2 * W4 + W2 * W3 - W5 - 6 * WW
-    @fastmath C2 = 1 - 3 * W2 + 6 * W3 - 3 * W4
+   	C1 = 6 * W2 * W5 - 6 * W2 + 12 * W2^2 - 12 * W2 * W4 + W2 * W3 - W5 - 6 * WW
+    C2 = 1 - 3 * W2 + 6 * W3 - 3 * W4
 
     ## Recursion to compute the moving stats.
     for i in 1:4
         @inbounds @simd for n in 1:(N-1)
-            @fastmath mstat[n+1, i] = l * (mstat[n, i] - xadj[n+1, i] * w[m]) + xadj[n+m+1, i] * w[1]
+            mstat[n+1, i] = l * (mstat[n, i] - xadj[n+1, i] * w[m]) + xadj[n+m+1, i] * w[1]
         end
     end
 
@@ -633,7 +633,7 @@ function entropy_index(x::AbstractVector{T}         ;
     width = (qmax - qmin) / n
 
     # For each filtered data point assign it to its bin index.
-    @fastmath idxs = Int.(1.0 .+ (div.(x .- qmin .- tol, width)))
+    idxs = Int.(1.0 .+ (div.(x .- qmin .- tol, width)))
     idxs .= min.(idxs, n)
     idxs .= max.(idxs, 1)
 
@@ -654,7 +654,7 @@ function entropy_index(x::AbstractVector{T}         ;
 	ent = zero(F)
     @inbounds @simd for i in 1:n
         prb = bdist[i]
-        @fastmath ent -= isapprox(prb, 0.0; atol=tol) ? 0.0 : prb * log(prb)
+        ent -= isapprox(prb, 0.0; atol=tol) ? 0.0 : prb * log(prb)
     end
 
     # Return the normalized discounted binned entropy.
