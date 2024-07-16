@@ -268,8 +268,8 @@ The inputs are assumed to satisfy the constraints below.
 
 """
 @noinline function ema(x::AbstractVector{T},
-    				   m::Int            ;
-    				   h=div(m, 2)::Int   )::Vector{T} where {T<:Real}
+    				   m::Int              ;
+    				   h=div(m, 2)::Int     )::Vector{T} where {T<:Real}
 
     ## Check Input Contract
     m > 1 || throw(DomainError(m, "The window length must be > 1."))
@@ -294,8 +294,10 @@ The inputs are assumed to satisfy the constraints below.
     ## Compute the EMA using the difference equation recursion.
     ma[1] = xadj[m+1]
     @inbounds @simd for i in 2:N
-        ma[i] = l * (ma[i-1] - w[m] * xadj[i]) + w[1] * xadj[i+m]
+        @fastmath ma[i] = l * (ma[i-1] - w[m] * xadj[i]) + w[1] * xadj[i+m]
     end
+	xadj = nothing
+	w    = nothing
 
     return (ma)
 end
@@ -339,9 +341,9 @@ The inputs are assumed to satisfy the constraints below.
 # Return
 `stda::Vector{T}`
 """
-@noinline function ema_std(x::AbstractVector{T}           ,
-    					   m::Int                         ;
-    					   h=div(m, 2)::Int               ,
+@noinline function ema_std(x::AbstractVector{T}             ,
+    					   m::Int                           ;
+    					   h=div(m, 2)::Int                 ,
     					   init_sig=nothing::Union{Nothing,T})::Vector{T} where {T<:Real}
 
     N = length(x)
@@ -382,15 +384,17 @@ The inputs are assumed to satisfy the constraints below.
     ## Weights go from large to small.
     w[1] = l
     @inbounds @simd for i in 2:m
-        w[i] = l * w[i-1]
+        @fastmath w[i] = l * w[i-1]
     end
     w ./= sum(w)
     w2 = sum(w .* w)
 
     ## Recursive formula for variance.
     @inbounds @simd for n in 1:(N-1)
-        mvar[n+1] = l * (mvar[n] - xadj[n+1] * w[m]) + xadj[n+m+1] * w[1]
+        @fastmath mvar[n+1] = l * (mvar[n] - xadj[n+1] * w[m]) + xadj[n+m+1] * w[1]
     end
+	xadj = nothing
+	w    = nothing
 
     ## Return corrected variances (unbiased).
     return (sqrt.(mvar ./ (one(T) - w2)))
@@ -400,7 +404,8 @@ end
 """
     ema_stats(x, m; h=div(m,2), init_sig=nothing)
 
-Compute the Moving Exponential Stats of the sequence `x`: `ema`, `ema_std`, `ema_rel_skew`, `ema_rel_kurtosis`.
+Compute the Moving Exponential Stats of the 
+sequence `x`: `ema`, `ema_std`, `ema_rel_skew`, `ema_rel_kurtosis`.
 
 The recursive formulas for the moving statistics as well as the adjustments necessary to 
 render the estimates *unbiased* come from the paper:
@@ -488,31 +493,34 @@ The inputs are assumed to satisfy the constraints below:
     W4 = zero(T)
     W5 = zero(T)
     @inbounds @simd for i in 1:m
-        wt = w[i]
-        w2 = wt * wt
-        W2 += w2
-        W3 += w2 * wt
-        W4 += w2 * w2
-        W5 += w2 * W3
+        @fastmath wt = w[i]
+        @fastmath w2 = wt * wt
+        @fastmath W2 += w2
+        @fastmath W3 += w2 * wt
+        @fastmath W4 += w2 * w2
+        @fastmath W5 += w2 * W3
     end
     WW = WWsum(w)
 
     ## Expressions needed to unbias our estimates.
-    C1 = 6 * W2 * W5 - 6 * W2 + 12 * W2^2 - 12 * W2 * W4 + W2 * W3 - W5 - 6 * WW
-    C2 = 1 - 3 * W2 + 6 * W3 - 3 * W4
+    @fastmath C1 = 6 * W2 * W5 - 6 * W2 + 12 * W2^2 - 12 * W2 * W4 + W2 * W3 - W5 - 6 * WW
+    @fastmath C2 = 1 - 3 * W2 + 6 * W3 - 3 * W4
 
     ## Recursion to compute the moving stats.
     for i in 1:4
         @inbounds @simd for n in 1:(N-1)
-            mstat[n+1, i] = l * (mstat[n, i] - xadj[n+1, i] * w[m]) + xadj[n+m+1, i] * w[1]
+            @fastmath mstat[n+1, i] = l * (mstat[n, i] - xadj[n+1, i] * w[m]) + xadj[n+m+1, i] * w[1]
         end
     end
 
     ## Unbias the estimates.
     mstat[:, 2] ./= one(T) - W2
-    mstat[:, 2] = sqrt.(mstat[:, 2])
+    mstat[:, 2]   = sqrt.(mstat[:, 2])
     mstat[:, 3] ./= (mstat[:, 2] .^ 1.5 .* (one(T) - 3 * W2 + 2 * W3))
-    mstat[:, 4] = (mstat[:, 4] ./ mstat[:, 2] .^ 2 .+ C1) ./ C2
+    mstat[:, 4]   = (mstat[:, 4] ./ mstat[:, 2] .^ 2 .+ C1) ./ C2
+
+	xadj = nothing
+	w    = nothing
 
     return (mstat)
 end
