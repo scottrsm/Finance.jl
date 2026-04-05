@@ -5,7 +5,7 @@ import Statistics
 
 export sig_cumsum, tic_diff1, tic_diff2, isConvertible
 export ema, ema_std, ema_stats, std
-export entropy_index, pow_n
+export entropy_index, pow_n, ewt_mean
 
 
 """
@@ -27,7 +27,7 @@ can be converted to a value of type `T`.
 """
 function isConvertible(::Type{S}, ::Type{T}) where {S<:Real,T<:Real}
     try
-        convert(one(S), one(T))
+        convert(T, one(S))
     catch _
         return (false)
     end
@@ -68,7 +68,7 @@ The inputs are assumed to satisfy the constraints below.
 """
 @noinline function tic_diff1(t::AbstractVector{T},
     						 x::AbstractVector{S};
-    					     chk_inp::Bool=false  )::AbstractVector{T} where {S<:Real,T<:Real}
+    					     chk_inp::Bool=false  )::AbstractVector{S} where {S<:Real,T<:Real}
     n = length(x)
 
     if chk_inp
@@ -77,7 +77,7 @@ The inputs are assumed to satisfy the constraints below.
         all(diff(t) .> zero(S)) || throw(DomainError(1, "The time series must have be strictly increasing."))
     end
 
-    tc = map(x -> convert(S, x), t)
+    tc = map(v -> convert(S, v), t)
     df = Vector{S}(undef, n - 2)
     @inbounds @simd for i in 2:(n-1)
         h1 = tc[i] - tc[i-1]
@@ -123,17 +123,17 @@ The inputs are assumed to satisfy the constraints below.
     n = length(x)
 
     if chk_inp
-        n == length(t)          || throw(DomainError(n - t, "The length of the time and data series must match."))
+        n == length(t)          || throw(DomainError(n, "The length of the time and data series must match."))
         isConvertible(T, S)     || throw(DomainError(0, "Type T is not convertible to type S."))
-        all(diff(t) .> zero(S)) || throw(DomainError(n - t, "The time series must have be strictly increasing."))
+        all(diff(t) .> zero(S)) || throw(DomainError(n, "The time series must have be strictly increasing."))
     end
 
-    tc = map(x -> convert(S, x), t)
+    tc = map(v -> convert(S, v), t)
     df = Vector{S}(undef, n - 2)
     @simd for i in 2:(n-1)
         @inbounds h1 = tc[i] - tc[i-1]
         @inbounds h2 = tc[i+1] - tc[i]
-        @inbounds df[i-1] = (h2 * x[i+1] - (h1 + h2) * x[i] + h1 * x[i-1]) / (h1 * h2 * (h1 + h2))
+        @inbounds df[i-1] = 2 * (h1 * x[i+1] - (h1 + h2) * x[i] + h2 * x[i-1]) / (h1 * h2 * (h1 + h2))
     end
 
     return (df)
@@ -155,7 +155,7 @@ Deviation is determined by:
 - ``S_t^- = {\\rm min}(0, S_{t-1} + x_t - E[x_{t-1}]; S^-_0 = 0``
 - ``S_t^{\\hphantom{+}} = {\\rm max}(S^+_t, -S^-_t)``
 
-Collect all ``t, S_t`` where ``h \\ge S_t``.
+Collect all ``t, S_t`` where ``S_t \\ge h``.
 
 # Type Constraints
 - `S <: Real`
@@ -201,9 +201,9 @@ function sig_cumsum(t::AbstractVector{S},
     # Input contract.
     if chk_inp
         n >= 2                   || throw(DomainError(n, "Vector length of `x` must be >= 2."))
-		n == length(t)           || throw(DomainError(nt, "Length of time sequence should match length of data."))
-        w > 1                    || throw(DomainError(n, "Window length must be > 1."))
-        h > zero(T)              || throw(DomainError(n, "Devitation threshold must be > 0."))
+		n == length(t)           || throw(DomainError(n, "Length of time sequence should match length of data."))
+        w > 1                    || throw(DomainError(w, "Window length must be > 1."))
+        h > zero(T)              || throw(DomainError(h, "Deviation threshold must be > 0."))
 		all(diff(t) .> zero(S))  || throw(DomainError(0, "Sequential differences of time seq must always be > 0."))
     end
 
@@ -218,10 +218,10 @@ function sig_cumsum(t::AbstractVector{S},
     tics = S[]   # The tics where the deviations occurred.
 
     # Loop over the series and populate, `tics` and `sigs`.
-    @inbounds @simd for i in 2:n
+    @inbounds for i in 2:n
         xm = ((w - 1) * xm + x[i-1]) / w
         Sp[i] = max(z, Sp[i-1] + x[i] - xm)
-        Sn[i] = min(z, Sp[i-1] + x[i] - xm)
+        Sn[i] = min(z, Sn[i-1] + x[i] - xm)
         delta = max(Sp[i], -Sn[i])
         if delta >= h
             push!(sigs, delta)
@@ -269,7 +269,7 @@ The inputs are assumed to satisfy the constraints below.
 """
 @noinline function ema(x::AbstractVector{T},
     				   m::Int              ;
-    				   h=div(m, 2)::Int     )::Vector{T} where {T<:Real}
+    				   h::Int=div(m, 2)     )::Vector{T} where {T<:Real}
 
     # Check Input Contract
     m > 1 || throw(DomainError(m, "The window length must be > 1."))
@@ -343,8 +343,8 @@ The inputs are assumed to satisfy the constraints below.
 """
 @noinline function ema_std(x::AbstractVector{T}             ,
     					   m::Int                           ;
-    					   h=div(m, 2)::Int                 ,
-    					   init_sig=nothing::Union{Nothing,T})::Vector{T} where {T<:Real}
+    					   h::Int=div(m, 2)                 ,
+    					   init_sig::Union{Nothing,T}=nothing)::Vector{T} where {T<:Real}
 
     N = length(x)
 
@@ -444,8 +444,8 @@ The inputs are assumed to satisfy the constraints below:
 """
 @noinline function ema_stats(x::AbstractVector{T}           ,
     					   	 m::Int                         ;
-    						 h=div(m, 2)::Int               ,
-    						 init_sig=nothing::Union{Nothing,T})::Matrix{T} where {T<:Real}
+    						 h::Int=div(m, 2)               ,
+    						 init_sig::Union{Nothing,T}=nothing)::Matrix{T} where {T<:Real}
     N = length(x)
 
     # Check input constraints.
@@ -463,6 +463,8 @@ The inputs are assumed to satisfy the constraints below:
     # Set the initial estimated/supplied variance.
     mstat[1, 2] = init_sig !== nothing ? init_sig : std(x[1:min(m, N)])
     mstat[1, 2] *= mstat[1, 2]
+    mstat[1, 3] = zero(T)
+    mstat[1, 4] = zero(T)
 
     # Add history (`m` zeros) for variance, etc.
     # We do this by augmenting the length of the "x"'s -- `(x - ma)^2`, `(x - ma)^3`, etc.
@@ -472,6 +474,9 @@ The inputs are assumed to satisfy the constraints below:
 	xadj = Matrix{T}(undef, N + m, 4)
     v = (x - ma) .* (x - ma)
     @inbounds xadj[1:m, 1] .= x[1]
+    @inbounds xadj[1:m, 2] .= zero(T)
+    @inbounds xadj[1:m, 3] .= zero(T)
+    @inbounds xadj[1:m, 4] .= zero(T)
     @inbounds xadj[(m+1):end, 1] .= x
     @inbounds xadj[(m+1):end, 2] .= v
     @inbounds xadj[(m+1):end, 3] .= v .* (x - ma)
@@ -633,7 +638,7 @@ function entropy_index(x::AbstractVector{T}         ;
     width = (qmax - qmin) / n
 
     # For each filtered data point assign it to its bin index.
-    idxs = Int.(1.0 .+ (div.(x .- qmin .- tol, width)))
+    idxs = floor.(Int, 1.0 .+ (div.(x .- qmin .- tol, width)))
     idxs .= min.(idxs, n)
     idxs .= max.(idxs, 1)
 
@@ -816,7 +821,7 @@ function ewt_mean(ts::AbstractVector{Float64},
     # Construct the temporal decay factors -- decay more as we go back in time.
     decayFs = Vector{Float64}(undef, b)
     decayFs[b] = 1.0
-    @inbounds for k in (b-1):1
+    @inbounds for k in (b-1):-1:1
         decayFs[k] = decayFs[k+1] * lm
     end
 

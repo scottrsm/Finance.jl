@@ -99,6 +99,119 @@ end
     @test_throws DomainError ema_stats(RNDS, 3)
     @test_throws DomainError ema_stats(RNDS, 5; init_sig=-1.0)
 
+    # sig_cumsum input contract tests
+    t_test = collect(1.0:20.0)
+    @test_throws DomainError sig_cumsum(t_test[1:1], RNDS[1:1], 2, 0.5; chk_inp=true)   # n < 2
+    @test_throws DomainError sig_cumsum(t_test[1:5], RNDS, 2, 0.5; chk_inp=true)          # length mismatch
+    @test_throws DomainError sig_cumsum(t_test, RNDS, 1, 0.5; chk_inp=true)               # w <= 1
+    @test_throws DomainError sig_cumsum(t_test, RNDS, 2, 0.0; chk_inp=true)               # h <= 0
+    @test_throws DomainError sig_cumsum(reverse(t_test), RNDS, 2, 0.5; chk_inp=true)      # non-increasing t
+
+    # tic_diff1 / tic_diff2 input contract tests
+    @test_throws DomainError tic_diff1(t_test[1:5], RNDS, chk_inp=true)                   # length mismatch
+    @test_throws DomainError tic_diff1(reverse(t_test), RNDS, chk_inp=true)                # non-increasing t
+    @test_throws DomainError tic_diff2(t_test[1:5], RNDS, chk_inp=true)                   # length mismatch
+    @test_throws DomainError tic_diff2(reverse(t_test), RNDS, chk_inp=true)                # non-increasing t
+
+    # entropy_index input contract tests
+    @test_throws DomainError entropy_index(RNDS2; n=2)                                     # n <= 2
+    @test_throws DomainError entropy_index(RNDS2; λ=0.0)                                   # λ <= 0
+    @test_throws DomainError entropy_index(RNDS2; λ=1.1)                                   # λ > 1
+
+    # pow_n input contract tests
+    @test_throws DomainError pow_n(2, -1)
+    @test_throws DomainError pow_n(2, -1, 5)
+
+    # ewt_mean input contract tests
+    ts_test = collect(1.0:20.0)
+    xs_test = rand(20)
+    @test_throws DomainError ewt_mean(ts_test[1:5], xs_test, 3, 1.0)   # length mismatch
+    @test_throws DomainError ewt_mean(ts_test, xs_test, 0, 1.0)         # b <= 0
+    @test_throws DomainError ewt_mean(ts_test, xs_test, 20, 1.0)        # b >= n
+    @test_throws DomainError ewt_mean(ts_test, xs_test, 3, 0.0)         # lm <= 0
+    @test_throws DomainError ewt_mean(ts_test, xs_test, 3, 1.1)         # lm > 1
+end
+
+@testset "Finance (tic_diff1/tic_diff2) " begin
+    # Test against known polynomial: x(t) = t^2
+    # First derivative = 2t, second derivative = 2
+    t = collect(1.0:0.5:10.0)
+    x = t .^ 2
+
+    d1 = tic_diff1(t, x)
+    # Central difference for t^2 should give exactly 2*t at interior points
+    for i in eachindex(d1)
+        @test d1[i] ≈ 2.0 * t[i+1] rtol = 1e-12
+    end
+
+    d2 = tic_diff2(t, x)
+    # Second derivative of t^2 = 2
+    for i in eachindex(d2)
+        @test d2[i] ≈ 2.0 rtol = 1e-10
+    end
+
+    # With chk_inp=true, valid inputs should not throw
+    d1c = tic_diff1(t, x; chk_inp=true)
+    d2c = tic_diff2(t, x; chk_inp=true)
+    @test d1c ≈ d1
+    @test d2c ≈ d2
+
+    # Test with irregular spacing (central difference gives t_{i+1}+t_{i-1} for t^2)
+    t_irreg = [1.0, 1.3, 2.0, 3.5, 4.0]
+    x_irreg = t_irreg .^ 2
+    d1_irreg = tic_diff1(t_irreg, x_irreg)
+    for i in eachindex(d1_irreg)
+        @test d1_irreg[i] ≈ t_irreg[i+2] + t_irreg[i] rtol = 1e-12
+    end
+end
+
+@testset "Finance (sig_cumsum)          " begin
+    # A constant series should produce no signals (no deviations from mean).
+    t_const = collect(1.0:20.0)
+    x_const = fill(5.0, 20)
+    tics, sigs = sig_cumsum(t_const, x_const, 3, 0.1)
+    @test length(tics) == 0
+    @test length(sigs) == 0
+
+    # A step function should produce signals after the step.
+    x_step = vcat(fill(0.0, 10), fill(10.0, 10))
+    t_step = collect(1.0:20.0)
+    tics_s, sigs_s = sig_cumsum(t_step, x_step, 5, 1.0)
+    @test length(tics_s) == length(sigs_s)
+    @test length(tics_s) > 0
+    # All detected tics should be at or after the step
+    @test all(tics_s .>= 10.0)
+
+    # With chk_inp=true, valid inputs should not throw
+    tics_v, sigs_v = sig_cumsum(t_step, x_step, 5, 1.0; chk_inp=true)
+    @test tics_v == tics_s
+    @test sigs_v == sigs_s
+end
+
+@testset "Finance (ewt_mean)            " begin
+    # Constant series: moving average of constant should be constant.
+    ts = collect(1.0:50.0)
+    xs = fill(3.0, 50)
+    wm = ewt_mean(ts, xs, 5, 1.0)
+    @test length(wm) == 45
+    @test all(wm .≈ 3.0)
+
+    # With decay factor = 1, temporal weighting only
+    Random.seed!(42)
+    xs2 = rand(50)
+    wm1 = ewt_mean(ts, xs2, 5, 1.0)
+    @test length(wm1) == 45
+
+    # With decay < 1, result should differ from non-decayed
+    wm_decay = ewt_mean(ts, xs2, 5, 0.9)
+    @test length(wm_decay) == 45
+    @test !(wm1 ≈ wm_decay)
+
+    # Result length should be n - b
+    for b in [3, 5, 10]
+        wm_b = ewt_mean(ts, xs2, b, 1.0)
+        @test length(wm_b) == 50 - b
+    end
 end
 
 @testset "Finance (PropCheck Test)      " begin
