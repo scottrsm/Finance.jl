@@ -7,7 +7,7 @@ CurrentModule = Finance
 # Overview
 Below is a collection of functions which are useful to find signals 
 in time series data.
-- `sigcumsum:` This function looks for imbalance in tics.
+- `sig_cumsum:` This function looks for imbalance in tics.
 - `isConvertible:` This function determines if one type can be converted to another.
 - `tic_diff1:` As tics are irregular, this function provides a 
                 way to compute the numerical derivative 
@@ -17,10 +17,12 @@ in time series data.
 - `ema:`       Computes the Exponential Moving Average of a time series. 
 - `ema_std:`   Computes the standard deviation of an
                Exponential Moving Average of a time series. 
-- `ema_stat:`  Computes the Exponential Moving Average along with
+- `ema_stats:` Computes the Exponential Moving Average along with
                the associated moving standard deviation, relative skewness, 
                relative kurtosis.
-- `ewt_mean`   Computes a exponentially decayed temporal weighted moving average.
+- `ewt_mean:`  Computes a exponentially decayed temporal weighted moving average.
+- `entropy_index:` Computes a (discounted) binned entropy index of a series.
+- `sample_std:` Computes the sample standard deviation of a series.
 - `pow_n:`     Computes the power of a value to a positive integer power 
                using repeated squaring.
 
@@ -44,7 +46,7 @@ ema_stats
 ```
 
 ```@docs
-std
+sample_std
 ```
 
 ## Utilities
@@ -70,11 +72,11 @@ pow_n(::T, ::Int, ::S) where {T <: Real, S <: Real}
 ```
 
 ```@docs
-entropy_index(::AbstractVector{T}; ::Int=10, ::F=1.0 / (100 * n), ::Vector{F}=[0.01, 0.99], ::F=1.0) where {T <: Real, F <: Float64}
+entropy_index
 ```
 
 ```@docs
-ewt_mean(::AbstractVector{Float64}, ::Vector{Float64}, ::Int, ::Float64)
+ewt_mean
 ```
 
 ## Index

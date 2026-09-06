@@ -40,7 +40,7 @@ Random.seed!(1)
 RNDS2 = rand(1000)
 pi_11_gold = 294204.0179738905e0
 r_1000_l1_gold = 0.987213065673524e0
-r_1000_l9_gold = 0.06972438782723225e0
+r_1000_l9_gold = 0.6441394775088246e0
 
 #------------------------------------------------------------------------
 #--------------      TESTS       ----------------------------------------
@@ -60,7 +60,8 @@ end
         @test length(ema_std_res) == length(RNDS)
         @test ema_res ≈ ema_gold[w] rtol = TOL
         @test ema_std_res ≈ ema_std_gold[w] rtol = TOL
-        @test std(RNDS) ≈ std_gold1 rtol = TOL
+        @test sample_std(RNDS) ≈ std_gold1 rtol = TOL
+        @test Finance.std(RNDS) ≈ std_gold1 rtol = TOL
 
         # Compute ema stats.
         stats = ema_stats(RNDS, w)
@@ -86,18 +87,26 @@ end
 
 @testset "Finance (Test Input Contracts)" begin
     @test_throws DomainError ema(RNDS, 1)
-    @test_throws DomainError ema(RNDS, 2)
-    @test_throws DomainError ema(RNDS, 3)
+    @test_throws DomainError ema(RNDS, 4; h=1)
+    @test_throws DomainError ema(Float64[], 4)
+    # `m = 2` and `m = 3` are valid (the documented contract is `m > 1`).
+    @test length(ema(RNDS, 2)) == length(RNDS)
+    @test length(ema(RNDS, 3)) == length(RNDS)
 
     @test_throws DomainError ema_std(RNDS, 1)
-    @test_throws DomainError ema_std(RNDS, 2)
-    @test_throws DomainError ema_std(RNDS, 3)
+    @test_throws DomainError ema_std(RNDS, 4; h=1)
+    @test_throws DomainError ema_std(RNDS[1:1], 4)
     @test_throws DomainError ema_std(RNDS, 5; init_sig=-1.0)
+    @test length(ema_std(RNDS, 2)) == length(RNDS)
 
     @test_throws DomainError ema_stats(RNDS, 1)
-    @test_throws DomainError ema_stats(RNDS, 2)
-    @test_throws DomainError ema_stats(RNDS, 3)
+    @test_throws DomainError ema_stats(RNDS, 4; h=1)
+    @test_throws DomainError ema_stats(RNDS[1:3], 4)
     @test_throws DomainError ema_stats(RNDS, 5; init_sig=-1.0)
+    @test size(ema_stats(RNDS, 2)) == (length(RNDS), 4)
+
+    @test_throws DomainError sample_std([1.0])
+    @test_throws DomainError sample_std(Float64[])
 
     # sig_cumsum input contract tests
     t_test = collect(1.0:20.0)
@@ -112,11 +121,16 @@ end
     @test_throws DomainError tic_diff1(reverse(t_test), RNDS, chk_inp=true)                # non-increasing t
     @test_throws DomainError tic_diff2(t_test[1:5], RNDS, chk_inp=true)                   # length mismatch
     @test_throws DomainError tic_diff2(reverse(t_test), RNDS, chk_inp=true)                # non-increasing t
+    @test_throws DomainError tic_diff1(t_test[1:1], RNDS[1:1])                             # too short
+    @test_throws DomainError tic_diff2(t_test[1:1], RNDS[1:1])                             # too short
+    @test tic_diff1(t_test[1:2], RNDS[1:2]) == Float64[]
 
     # entropy_index input contract tests
     @test_throws DomainError entropy_index(RNDS2; n=2)                                     # n <= 2
     @test_throws DomainError entropy_index(RNDS2; λ=0.0)                                   # λ <= 0
     @test_throws DomainError entropy_index(RNDS2; λ=1.1)                                   # λ > 1
+    @test_throws DomainError entropy_index(RNDS2; probs=[0.5])                             # |probs| != 2
+    @test_throws DomainError entropy_index(Float64[])                                      # empty
 
     # pow_n input contract tests
     @test_throws DomainError pow_n(2, -1)
@@ -156,13 +170,77 @@ end
     @test d1c ≈ d1
     @test d2c ≈ d2
 
-    # Test with irregular spacing (central difference gives t_{i+1}+t_{i-1} for t^2)
+    # Test with irregular spacing: the three point formula is exact for quadratics.
     t_irreg = [1.0, 1.3, 2.0, 3.5, 4.0]
     x_irreg = t_irreg .^ 2
     d1_irreg = tic_diff1(t_irreg, x_irreg)
     for i in eachindex(d1_irreg)
-        @test d1_irreg[i] ≈ t_irreg[i+2] + t_irreg[i] rtol = 1e-12
+        @test d1_irreg[i] ≈ 2.0 * t_irreg[i+1] rtol = 1e-12
     end
+    d2_irreg = tic_diff2(t_irreg, x_irreg)
+    @test all(d2_irreg .≈ 2.0)
+
+    # Integer inputs are promoted to floating point.
+    @test tic_diff1([1, 2, 3, 4], [1, 2, 4, 7]) == [1.5, 2.5]
+    @test tic_diff2([1, 2, 3, 4], [1, 2, 4, 7]) == [1.0, 1.0]
+    @test eltype(tic_diff1(1:4, [1.0, 2.0, 4.0, 7.0])) == Float64
+end
+
+@testset "Finance (ema_stats: skew/kurt)" begin
+    Random.seed!(7)
+    x = rand(60)
+
+    # Skew and kurtosis are dimensionless: rescaling and shifting the series does not change them.
+    s1 = ema_stats(x, 8)
+    s2 = ema_stats(10.0 .* x .+ 3.0, 8)
+    @test s1[:, 3] ≈ s2[:, 3] atol = 1e-10
+    @test s1[:, 4] ≈ s2[:, 4] atol = 1e-10
+    @test s2[:, 2] ≈ 10.0 .* s1[:, 2] rtol = 1e-10
+
+    # For a normal series the corrected skew and excess kurtosis average to zero.
+    K = 1500; sk = 0.0; ku = 0.0
+    for _ in 1:K
+        st = ema_stats(randn(200), 20)
+        sk += st[end, 3]; ku += st[end, 4]
+    end
+    @test abs(sk / K) < 0.1
+    @test abs(ku / K) < 0.15
+
+    # A skewed series has positive skew and positive excess kurtosis.
+    st = ema_stats(-log.(rand(2000)), 60)
+    @test st[end, 3] > 0.5
+    @test st[end, 4] > 0.5
+
+    # Integer input.
+    @test size(ema_stats(collect(1:20), 4)) == (20, 4)
+    @test ema([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 4) ≈ ema(collect(1.0:10.0), 4)
+    @test ema_std([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 4) ≈ ema_std(collect(1.0:10.0), 4)
+end
+
+@testset "Finance (entropy_index: time discount)" begin
+    # A constant series has a single occupied bin: index 0.
+    @test entropy_index(fill(1.0, 100)) == 0.0
+
+    # Without discount the index is invariant under shuffling; with discount it is not.
+    Random.seed!(3)
+    y = vcat(zeros(500), rand(500))
+    @test entropy_index(y; n=20, λ=1.0) ≈ entropy_index(reverse(y); n=20, λ=1.0)
+    # The newest values are spread out (high entropy) versus all in one bin (low entropy).
+    @test entropy_index(y; n=20, λ=0.9) > 0.8
+    @test entropy_index(reverse(y); n=20, λ=0.9) < 0.1
+    @test 0.0 <= entropy_index(rand(100)) <= 1.0
+
+    # Integer series.
+    @test entropy_index(collect(1:100); n=10) ≈ 1.0 rtol = 0.05
+end
+
+@testset "Finance (pow_n)               " begin
+    @test pow_n(2, 0) == 1 && pow_n(2, 1) == 2
+    @test pow_n(2.5, 3) == 2.5^3
+    @test pow_n(3, 4, 7) == mod(3^4, 7)
+    @test pow_n(2, 10, 1000) == 24
+    @test pow_n(-2, 3, 5) == mod((-2)^3, 5)   # `mod` semantics
+    @test pow_n(2, 0, 5) == 1
 end
 
 @testset "Finance (sig_cumsum)          " begin
@@ -195,6 +273,13 @@ end
     wm = ewt_mean(ts, xs, 5, 1.0)
     @test length(wm) == 45
     @test all(wm .≈ 3.0)
+
+    # Hand computed windows: equal time steps and no decay give plain means;
+    # unequal steps weight each value by the time it "lived"; decay halves the older weight.
+    @test ewt_mean([0.0, 1, 2, 3, 4], [1.0, 2, 3, 4, 5], 2, 1.0) == [1.5, 2.5, 3.5]
+    @test ewt_mean([0.0, 1, 3, 4, 5], [1.0, 2, 3, 4, 5], 2, 1.0) ≈ [(1 + 2 * 2) / 3, (2 * 2 + 3) / 3, 3.5]
+    @test ewt_mean([0.0, 1, 2, 3, 4], [1.0, 2, 3, 4, 5], 2, 0.5) ≈ [(0.5 + 2) / 1.5, (1 + 3) / 1.5, (1.5 + 4) / 1.5]
+    @test ewt_mean(1:5, [1, 2, 3, 4, 5], 2, 1) == [1.5, 2.5, 3.5]
 
     # With decay factor = 1, temporal weighting only
     Random.seed!(42)
